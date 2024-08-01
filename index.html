@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Parkir Real-time</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.2.8/mqtt.min.js"></script>
+</head>
+<body>
+    <h1>Status Tempat Parkir</h1>
+    <div class="parking-lot">
+        <div id="parkingSpot1" class="parking-spot empty">
+            <p id="statusText1">Kosong</p>
+        </div>
+        <div id="parkingSpot2" class="parking-spot empty">
+            <p id="statusText2">Kosong</p>
+        </div>
+        <div id="parkingSpot3" class="parking-spot empty">
+            <p id="statusText3">Kosong</p>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi koneksi MQTT
+        const broker = 'wss://4008db6d95784355a746a9864c9662fa.s1.eu.hivemq.cloud:8884/mqtt'; // Ganti dengan URL WebSocket broker HiveMQ Anda
+        const topic = 'parkir/status';
+        const options = {
+            username: 'mqttparkir', // Ganti dengan username MQTT Anda
+            password: 'Raju0710', // Ganti dengan password MQTT Anda
+            reconnectPeriod: 5000, // Mengatur periode reconnect
+            clientId: 'web-client-' + Math.random().toString(16).substr(2, 8) // ID klien unik
+        };
+
+        // Menghubungkan ke broker MQTT
+        const client = mqtt.connect(broker, options);
+
+        client.on('connect', function () {
+            console.log('Terhubung ke broker MQTT');
+            client.subscribe(topic, function (err) {
+                if (!err) {
+                    console.log('Berhasil berlangganan topik:', topic);
+                } else {
+                    console.error('Gagal berlangganan topik:', topic, err);
+                }
+            });
+        });
+
+        // Fungsi untuk mengubah status parkir
+        function updateParkingStatus(sensorId, status) {
+            const parkingSpot = document.getElementById(`parkingSpot${sensorId}`);
+            const statusText = document.getElementById(`statusText${sensorId}`);
+
+            if (status === 'Terisi') {
+                parkingSpot.classList.remove('empty');
+                parkingSpot.classList.add('occupied');
+                statusText.textContent = 'Terisi';
+            } else {
+                parkingSpot.classList.remove('occupied');
+                parkingSpot.classList.add('empty');
+                statusText.textContent = 'Kosong';
+            }
+        }
+
+        // Mendengarkan pesan dari broker MQTT
+        client.on('message', function (topic, message) {
+            console.log('Pesan diterima:', message.toString());
+            const statusData = message.toString().split(',');
+            statusData.forEach(data => {
+                const [sensorId, status] = data.split(':');
+                if (sensorId === 'Sensor1') {
+                    updateParkingStatus(1, status);
+                } else if (sensorId === 'Sensor2') {
+                    updateParkingStatus(2, status);
+                } else if (sensorId === 'Sensor3') {
+                    updateParkingStatus(3, status);
+                }
+            });
+        });
+
+        client.on('error', function (err) {
+            console.error('Error MQTT:', err);
+        });
+
+        client.on('reconnect', function () {
+            console.log('Menghubungkan ulang ke broker MQTT...');
+        });
+
+    </script>
+</body>
+</html>
+
